@@ -63,7 +63,7 @@
     <div style="clear: both;"></div>
 
 </body>
-<script src="https://d3js.org/d3.v4.js"></script>
+<script src="https://d3js.org/d3.v4.min.js"></script>
 <!-- <script src="https://d3js.org/d3-hierarchy.v1.min.js"></script> -->
 <script src="../venn.js"></script>
 <script>
@@ -130,8 +130,8 @@
                 node.highlight = highlight;
 
                 if (node.highlight) {
-                    node.vx = (node.parent.data.x - node.x) * k * 2;
-                    node.vy = (node.parent.data.y - node.y) * k * 2;
+                    node.x = node.x + (node.parent.data.x - node.x) / 4;
+                    node.y = node.y + (node.parent.data.y - node.y) / 4;
                 }
             }
         }
