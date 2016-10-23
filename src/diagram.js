@@ -91,7 +91,7 @@ export function VennDiagram() {
         };
 
         // update data, joining on the set ids
-        var nodes = svg.selectAll("g")
+        var nodes = svg.selectAll(".venn-area")
             .data(data, function(d) { return d.sets; });
 
         // create new nodes
@@ -128,14 +128,16 @@ export function VennDiagram() {
 
         // update existing, using pathTween if necessary
         var update = selection;
-        if (hasPrevious) {
+        if (false) { // hasPrevious) {
             update = selection.transition("venn").duration(duration);
             update.selectAll("path")
                 .attrTween("d", pathTween);
         } else {
             update.selectAll("path")
                 .attr("d", function(d) {
-                    return intersectionAreaPath(d.sets.map(function (set) { return circles[set]; }));
+                    return intersectionAreaPath(
+                        d.sets.map(function (set) { return circles[set]; }),
+                        Object.keys(circles).map(e => circles[e]));
                 });
         }
 
@@ -391,7 +393,7 @@ export function computeTextCentre(interior, exterior) {
             ret = {x: interior[0].x, y: interior[0].y};
         } else {
             var areaStats = {};
-            intersectionArea(interior, areaStats);
+            intersectionArea(interior, null, areaStats);
 
             if (areaStats.arcs.length === 0) {
                 ret = {'x': 0, 'y': -1000, disjoint:true};
@@ -543,9 +545,9 @@ export function circleFromPath(path) {
 }
 
 /** returns a svg path of the intersection area of a bunch of circles */
-export function intersectionAreaPath(circles) {
+export function intersectionAreaPath(circles, allcircles) {
     var stats = {};
-    intersectionArea(circles, stats);
+    intersectionArea(circles, allcircles, stats);
     var arcs = stats.arcs;
 
     if (arcs.length === 0) {
@@ -560,6 +562,10 @@ export function intersectionAreaPath(circles) {
         var ret = ["\nM", arcs[0].p2.x, arcs[0].p2.y];
         for (var i = 0; i < arcs.length; ++i) {
             var arc = arcs[i], r = arc.circle.radius, wide = arc.width > r;
+            if (!arc.within)
+                ret.push("\nA", r, r, 0, wide ? 0 : 1, 0,
+                    arc.p1.x, arc.p1.y);
+            else
             ret.push("\nA", r, r, 0, wide ? 1 : 0, 1,
                      arc.p1.x, arc.p1.y);
         }

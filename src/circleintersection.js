@@ -1,29 +1,52 @@
 var SMALL = 1e-10;
 
 /** Returns the intersection area of a bunch of circles (where each circle
- is an object having an x,y and radius property) */
-export function intersectionArea(circles, stats) {
+ is an object having an x,y and radius property). Any circles which are specified as
+ allcircles which are not in circles will have their area subtracted from the result.
+ This allows the area A,B to not overlap with both A and B */
+export function intersectionArea(circles, allcircles, stats) {
+
+    // set default
+    allcircles = (allcircles == null) ? circles : allcircles;
+
+    // find just the circles that aren't in circles, i.e. those that intrude on the result
+    var intrudeCircles = allcircles.filter(x => circles.indexOf(x) == -1);
+
+    // find all the intersection points that are incide the circles
+    var containingPoints = getIntersectionPoints(circles).filter(
+        p => containedInCircles(p, circles));
+
+    var arcArea = 0,
+        polygonArea = 0,
+        arcs = [],
+        i;
+
     // get all the intersection points of the circles
-    var intersectionPoints = getIntersectionPoints(circles);
+    var innerPoints = getIntersectionPoints(allcircles);
+    // count how many edges on the intersection are bounding (ignoring those that
+    // simply intrude). Result is 2 if both circles of the intersection are in circles,
+    // 1 if only one is and 0 if neither is
+    innerPoints.forEach(p =>
+        p.containingArcs = [0, 1].map(b =>
+            circles.includes(allcircles[p.parentIndex[b]])
+        ).reduce((acc, cur) => cur ? acc + 1 : acc, 0)
+    );
 
-    // filter out points that aren't included in all the circles
-    var innerPoints = intersectionPoints.filter(function (p) {
-        return containedInCircles(p, circles);
-    });
-
-    var arcArea = 0, polygonArea = 0, arcs = [], i;
+    // lets find the set of intersections that are inside circles and aren't
+    // inside intrudeCircles (this will be our boundary)
+    innerPoints = innerPoints
+      .filter(p => containedInCircles(p, circles))
+      .filter(p => notContainedInCircles(p, intrudeCircles));
 
     // if we have intersection points that are within all the circles,
     // then figure out the area contained by them
     if (innerPoints.length > 1) {
         // sort the points by angle from the center of the polygon, which lets
         // us just iterate over points to get the edges
-        var center = getCenter(innerPoints);
-        for (i = 0; i < innerPoints.length; ++i ) {
-            var p = innerPoints[i];
-            p.angle = Math.atan2(p.x - center.x, p.y - center.y);
-        }
-        innerPoints.sort(function(a,b) { return b.angle - a.angle;});
+        var center = getCenter(containingPoints);
+
+        innerPoints.forEach(p => p.angle = Math.atan2(p.x - center.x, p.y - center.y));
+          innerPoints.sort((a, b) => b.angle - a.angle);
 
         // iterate over all points, get arc between the points
         // and update the areas
@@ -35,37 +58,43 @@ export function intersectionArea(circles, stats) {
             polygonArea += (p2.x + p1.x) * (p1.y - p2.y);
 
             // updating the arc area is a little more involved
-            var midPoint = {x : (p1.x + p2.x) / 2,
-                            y : (p1.y + p2.y) / 2},
+            var midPoint = {
+                    x: (p1.x + p2.x) / 2,
+                    y: (p1.y + p2.y) / 2
+                },
                 arc = null;
 
             for (var j = 0; j < p1.parentIndex.length; ++j) {
                 if (p2.parentIndex.indexOf(p1.parentIndex[j]) > -1) {
                     // figure out the angle halfway between the two points
                     // on the current circle
-                    var circle = circles[p1.parentIndex[j]],
+                    var circle = allcircles[p1.parentIndex[j]],
                         a1 = Math.atan2(p1.x - circle.x, p1.y - circle.y),
                         a2 = Math.atan2(p2.x - circle.x, p2.y - circle.y);
 
                     var angleDiff = (a2 - a1);
                     if (angleDiff < 0) {
-                        angleDiff += 2*Math.PI;
+                        angleDiff += 2 * Math.PI;
                     }
 
                     // and use that angle to figure out the width of the
                     // arc
-                    var a = a2 - angleDiff/2,
+                    var a = a2 - angleDiff / 2,
                         width = distance(midPoint, {
-                            x : circle.x + circle.radius * Math.sin(a),
-                            y : circle.y + circle.radius * Math.cos(a)
+                            x: circle.x + circle.radius * Math.sin(a),
+                            y: circle.y + circle.radius * Math.cos(a)
                         });
 
                     // pick the circle whose arc has the smallest width
                     if ((arc === null) || (arc.width > width)) {
-                        arc = { circle : circle,
-                                width : width,
-                                p1 : p1,
-                                p2 : p2};
+                        arc = {
+                            circle: circle,
+                            width: width,
+                            p1: p1,
+                            p2: p2,
+                            center: center,
+                            within: circles.includes(circle)
+                        };
                     }
                 }
             }
@@ -76,6 +105,7 @@ export function intersectionArea(circles, stats) {
                 p2 = p1;
             }
         }
+
     } else {
         // no intersection points, is either disjoint - or is completely
         // overlapped. figure out which by examining the smallest circle
@@ -101,10 +131,18 @@ export function intersectionArea(circles, stats) {
 
         } else {
             arcArea = smallest.radius * smallest.radius * Math.PI;
-            arcs.push({circle : smallest,
-                       p1: { x: smallest.x,        y : smallest.y + smallest.radius},
-                       p2: { x: smallest.x - SMALL, y : smallest.y + smallest.radius},
-                       width : smallest.radius * 2 });
+            arcs.push({
+                circle: smallest,
+                p1: {
+                    x: smallest.x,
+                    y: smallest.y + smallest.radius
+                },
+                p2: {
+                    x: smallest.x - SMALL,
+                    y: smallest.y + smallest.radius
+                },
+                width: smallest.radius * 2
+            });
         }
     }
 
@@ -115,21 +153,25 @@ export function intersectionArea(circles, stats) {
         stats.polygonArea = polygonArea;
         stats.arcs = arcs;
         stats.innerPoints = innerPoints;
-        stats.intersectionPoints = intersectionPoints;
     }
 
     return arcArea + polygonArea;
 }
 
-/** returns whether a point is contained by all of a list of circles */
-export function containedInCircles(point, circles) {
-    for (var i = 0; i < circles.length; ++i) {
-        if (distance(point, circles[i]) > circles[i].radius + SMALL) {
-            return false;
-        }
-    }
-    return true;
+function containedInCircle(point, circle, tolerance) {
+    return distance(point, circle) <= (circle.radius + tolerance);
 }
+
+function notContainedInCircles(point, circles) {
+  // check point is not within any circle
+    return !circles.some(circle => containedInCircle(point, circle, -SMALL));
+  }
+
+function containedInCircles(point, circles, every = true) {
+    // check point is within all circles
+        return circles.every(circle => containedInCircle(point, circle, SMALL));
+}
+
 
 /** Gets all intersection points between a bunch of circles */
 function getIntersectionPoints(circles) {

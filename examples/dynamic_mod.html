@@ -97,13 +97,14 @@
         d3.select("svg").selectAll(".point")
             .attr("cx", d => d.x)
             .attr("cy", d => d.y)
-            .style("fill", d => d.highlight ? "red" : "blue");
+            .style("fill", d => d.highlight ? "black" : getColour(d.parent.data))
+            .style("fill-opacity", d => d.highlight ? 1 : 0.6);
     }
 
     var simulation = d3.forceSimulation()
         .force("collide", d3.forceCollide(8))
-        .force("x", d3.forceX(node => node.parent.data.centerx).strength(0.05))
-        .force("y", d3.forceY(node => node.parent.data.centery).strength(0.05))
+        .force("x", d3.forceX(node => node.parent.data.centerx).strength(0.2))
+        .force("y", d3.forceY(node => node.parent.data.centery).strength(0.2))
         .force("constrain", constrain())
         .on("tick", ticked);
 
@@ -155,34 +156,25 @@
 
 
 
-    // tweak style
-    var colours = ['black', 'red', 'blue'];
     d3.selectAll("#venn .venn-circle path")
         .style("fill-opacity", 0.2)
-        .style("stroke-width", 1)
-        .style("stroke-opacity", .5)
-        .style("stroke", function(d, i) {
-            return colours[i];
-        });
+        .style("fill", d => getColour(d))
+        .style("stroke-width", 0)
 
     d3.selectAll("#venn .venn-intersection path")
-        .style("fill-opacity", 0)
-        .style("stroke-width", 2)
-        .style("stroke-opacity", .5)
-        .style("fill", "green")
-        .style("stroke", function(d, i) {
-            return colours[i];
-        });
+        .style("fill-opacity", 0.4)
+        .style("stroke-width", 0)
+        .style("fill", d => getColour(d))
+        .style("stroke", "black");
 
 
     d3.selectAll("#venn .venn-circle").selectAll("text")
-        .style("fill", function(d, i) {
-            return colours[i]
-        })
         .style("font-size", "32px")
         .style("font-weight", "100");
 
-
+    function getColour(d) {
+        return "#" + (d.sets.indexOf("A") >= 0 ? "FF" : "00") + (d.sets.indexOf("B") >= 0 ? "FF" : "00") + (d.sets.indexOf("C") >= 0 ? "FF" : "00");
+    }
 
 
     function dragstarted(d) {
@@ -224,7 +216,13 @@
 
         // make sure there is a <g> points
         d3.selectAll("#venn svg").selectAll(".points")
-            .data([null]).enter().append("g").attr("class", "points");
+            .data([null]).enter().append("g")
+            .attr("class", "points")
+            .style("fill-opacity", 0.6)
+            //      .style("fill",d=> getColour(d))
+            .style("stroke-width", 0.1)
+            .style("stroke", "black");
+
 
         var points = d3.select(".points");
 
@@ -278,8 +276,8 @@
         d.shape = polygon;
 
         var bbox = path.getBBox();
-        d.centerx = Math.floor(bbox.x + bbox.width/2.0);
-        d.centery = Math.floor(bbox.y + bbox.height/2.0);
+        d.centerx = Math.floor(bbox.x + bbox.width / 2.0);
+        d.centery = Math.floor(bbox.y + bbox.height / 2.0);
     }
 </script>
 
