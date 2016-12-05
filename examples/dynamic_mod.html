@@ -78,6 +78,7 @@
                 };
 
             });
+        console.log(areas);
         return areas;
 
         function fillArrayWithLetters(n, prefix) {
@@ -94,6 +95,7 @@
         .height(500);
 
     function ticked() {
+
         d3.select("svg").selectAll(".point")
             .attr("cx", d => d.x)
             .attr("cy", d => d.y)
@@ -210,6 +212,7 @@
     }
 
     function addPoints() {
+      console.log("addPoints")
         var hierarchy = d3.hierarchy(setIntersections,
             d => (typeof d.children == "undefined") ? d : d.children)
         var nodes = hierarchy.leaves();
@@ -227,7 +230,7 @@
         var points = d3.select(".points");
 
         var datapoints = points.selectAll(".point")
-            .data(nodes, d => d.data.name);
+            .data(nodes, d => {console.log(d); return d.data.name});
 
         // lets copy the current x and y value back from object to data so that
         // the simulation carries on rather than restarting
